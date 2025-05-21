@@ -31,12 +31,16 @@ const Products = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [activeTab, setActiveTab] = useState("published");
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1); // Add currentPage state
+  const productsPerPage = 5; // 5 products per page
 
   // Fetch products from API on mount
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("/api/products");
+        setLoading(true);
+        const response = await fetch("https://commodity-vista.vercel.app/api/products");
         if (!response.ok) {
           throw new Error("Failed to fetch products");
         }
@@ -49,6 +53,8 @@ const Products = () => {
           description: "Failed to fetch products. Please try again.",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -76,7 +82,15 @@ const Products = () => {
     }
 
     setFilteredProducts(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [searchQuery, products, activeTab]);
+
+  // Calculate pagination data
+  const totalFilteredProducts = filteredProducts.length;
+  const totalPages = Math.ceil(totalFilteredProducts / productsPerPage);
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -84,7 +98,7 @@ const Products = () => {
 
   const handleCheckAll = (checked) => {
     if (checked) {
-      setSelectedProducts(filteredProducts.map((p) => p.id));
+      setSelectedProducts(currentProducts.map((p) => p.id));
     } else {
       setSelectedProducts([]);
     }
@@ -113,6 +127,13 @@ const Products = () => {
       setFilteredProducts((prev) => prev.filter((product) => product.id !== id));
       setSelectedProducts((prev) => prev.filter((productId) => productId !== id));
 
+      // Adjust current page if necessary
+      const newTotalFilteredProducts = filteredProducts.length - 1;
+      const newTotalPages = Math.ceil(newTotalFilteredProducts / productsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+
       toast({
         title: "Product Deleted",
         description: "The product has been deleted successfully.",
@@ -127,8 +148,12 @@ const Products = () => {
   };
 
   const handleEdit = (id) => {
-    // Navigate to an edit page (you'll need to create this route and component)
     navigate(`/products/edit/${id}`);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    setSelectedProducts([]); // Clear selection when changing pages
   };
 
   const chartData = [
@@ -153,243 +178,290 @@ const Products = () => {
         </Link>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <div className="relative w-full sm:w-64">
-            <Input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={handleSearch}
-              className="pl-10"
-            />
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      {loading ? (
+        // Modern Loader
+        <div className="flex items-center justify-center h-64">
+          <div className="w-12 h-12 border-4 border-t-4 border-gray-200 border-t-theme-purple rounded-full animate-spin"></div>
+        </div>
+      ) : (
+        // Main Content
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div className="relative w-full sm:w-64">
+              <Input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={handleSearch}
+                className="pl-10"
               />
-            </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm">
+                Filter
+              </Button>
+              <Button variant="outline" size="sm">
+                Download
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              Filter
-            </Button>
-            <Button variant="outline" size="sm">
-              Download
-            </Button>
-          </div>
-        </div>
 
-        <div className="flex flex-col space-y-4">
-          <Tabs defaultValue="published" onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="published">Published</TabsTrigger>
-              <TabsTrigger value="draft">Draft</TabsTrigger>
-            </TabsList>
+          <div className="flex flex-col space-y-4">
+            <Tabs defaultValue="published" onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="published">Published</TabsTrigger>
+                <TabsTrigger value="draft">Draft</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="published" className="space-y-4">
-              <div className="w-full overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            selectedProducts.length === filteredProducts.length &&
-                            filteredProducts.length > 0
-                          }
-                          onCheckedChange={handleCheckAll}
-                        />
-                      </TableHead>
-                      <TableHead>Product Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Views</TableHead>
-                      <TableHead className="hidden md:table-cell">Pricing</TableHead>
-                      <TableHead className="hidden md:table-cell">Revenue</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
+              <TabsContent value="published" className="space-y-4">
+                <div className="w-full overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedProducts.includes(product.id)}
-                            onCheckedChange={(checked) =>
-                              handleCheck(product.id, checked === true)
+                            checked={
+                              selectedProducts.length === currentProducts.length &&
+                              currentProducts.length > 0
                             }
+                            onCheckedChange={handleCheckAll}
                           />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <div className="h-10 w-10 bg-gray-100 rounded-md overflow-hidden">
-                              <img
-                                src={product.thumbnailImage || "/placeholder.svg"}
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="font-medium">{product.name}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {product.views.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ${parseFloat(product.price).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ${product.revenue.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(product.id)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            Delete
-                          </Button>
-                        </TableCell>
+                        </TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead className="hidden md:table-cell">Views</TableHead>
+                        <TableHead className="hidden md:table-cell">Pricing</TableHead>
+                        <TableHead className="hidden md:table-cell">Revenue</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
+                    </TableHeader>
+                    <TableBody>
+                      {currentProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedProducts.includes(product.id)}
+                              onCheckedChange={(checked) =>
+                                handleCheck(product.id, checked === true)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <div className="h-10 w-10 bg-gray-100 rounded-md overflow-hidden">
+                                <img
+                                  src={product.thumbnailImage || "/placeholder.svg"}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="font-medium">{product.name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {product.views.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            ${parseFloat(product.price).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            ${product.revenue.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(product.id)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => handleDelete(product.id)}
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
 
-            <TabsContent value="draft">
-              <div className="w-full overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            selectedProducts.length === filteredProducts.length &&
-                            filteredProducts.length > 0
-                          }
-                          onCheckedChange={handleCheckAll}
-                        />
-                      </TableHead>
-                      <TableHead>Product Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Views</TableHead>
-                      <TableHead className="hidden md:table-cell">Pricing</TableHead>
-                      <TableHead className="hidden md:table-cell">Revenue</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
+              <TabsContent value="draft">
+                <div className="w-full overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedProducts.includes(product.id)}
-                            onCheckedChange={(checked) =>
-                              handleCheck(product.id, checked === true)
+                            checked={
+                              selectedProducts.length === currentProducts.length &&
+                              currentProducts.length > 0
                             }
+                            onCheckedChange={handleCheckAll}
                           />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <div className="h-10 w-10 bg-gray-100 rounded-md overflow-hidden">
-                              <img
-                                src={product.thumbnailImage || "/placeholder.svg"}
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="font-medium">{product.name}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {product.views.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ${parseFloat(product.price).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ${product.revenue.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(product.id)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            Delete
-                          </Button>
-                        </TableCell>
+                        </TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead className="hidden md:table-cell">Views</TableHead>
+                        <TableHead className="hidden md:table-cell">Pricing</TableHead>
+                        <TableHead className="hidden md:table-cell">Revenue</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {currentProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedProducts.includes(product.id)}
+                              onCheckedChange={(checked) =>
+                                handleCheck(product.id, checked === true)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <div className="h-10 w-10 bg-gray-100 rounded-md overflow-hidden">
+                                <img
+                                  src={product.thumbnailImage || "/placeholder.svg"}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="font-medium">{product.name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {product.views.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            ${parseFloat(product.price).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            ${product.revenue.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(product.id)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => handleDelete(product.id)}
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+
+                <div className="flex items-center space-x-2">
+                  {[...Array(totalPages)].map((_, index) => {
+                    const page = index + 1;
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div className="flex justify-between items-center mt-8 border-t pt-4">
-          <div>
-            <p className="text-sm text-gray-500">
-              Showing {filteredProducts.length} of {products.length} products
-            </p>
+            )}
           </div>
 
-          <div className="flex items-center space-x-4">
-            <p className="font-medium">Total Views</p>
-            <div className="text-xl font-bold">+112,893</div>
+          <div className="flex justify-between items-center mt-8 border-t pt-4">
+            <div>
+              <p className="text-sm text-gray-500">
+                Showing {currentProducts.length} of {totalFilteredProducts} products
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <p className="font-medium">Total Views</p>
+              <div className="text-xl font-bold">+112,893</div>
+            </div>
+          </div>
+
+          <div className="mt-4 h-36">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
+              >
+                <defs>
+                  <linearGradient id="colorView" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis hide={true} />
+                <Tooltip />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#f59e0b"
+                  fillOpacity={1}
+                  fill="url(#colorView)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
-
-        <div className="mt-4 h-36">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
-            >
-              <defs>
-                <linearGradient id="colorView" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis hide={true} />
-              <Tooltip />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#f59e0b"
-                fillOpacity={1}
-                fill="url(#colorView)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

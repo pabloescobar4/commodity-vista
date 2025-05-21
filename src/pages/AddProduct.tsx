@@ -81,7 +81,7 @@ const AddProduct = () => {
         createdAt: new Date().toISOString(),
       };
 
-      const response = await fetch("/api/products", {
+      const response = await fetch("https://commodity-vista.vercel.app/api/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

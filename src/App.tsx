@@ -54,6 +54,7 @@ const App = () => (
                   {/* Shared Routes for Both Roles */}
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/add" element={<AddProduct />} />
+                  {/* <Route path="/products/edit/:id" element={<EditProduct />} /> */}
                   <Route path="/settings" element={<Settings />} />
                 </Route>
               </Route>
